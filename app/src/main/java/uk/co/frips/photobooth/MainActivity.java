@@ -1,13 +1,19 @@
 package uk.co.frips.photobooth;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Chronometer;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.airbnb.lottie.LottieAnimationView;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONObject;
@@ -17,6 +23,8 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+
+import static android.view.View.GONE;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -28,13 +36,14 @@ public class MainActivity extends AppCompatActivity {
     private Socket mSocket;
     @BindView(R.id.main_photo) ImageView mPhotoView;
     @BindView(R.id.main_countdown) TextView mCountdowTextView;
+    @BindView(R.id.main_chronometer) Chronometer mChronometer;
+    @BindView(R.id.main_lottie) LottieAnimationView mLottie;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-
 
         mSocket = ((PhotoboothApplication) getApplication()).getSocket();
         mSocket.on(Socket.EVENT_CONNECT, onConnect);
@@ -60,35 +69,73 @@ public class MainActivity extends AppCompatActivity {
         mSocket.off(EVENT_RESET, onReset);
     }
 
-    private void showCountdown(String countdown) {
-        mCountdowTextView.setVisibility(View.VISIBLE);
-        mCountdowTextView.setText(countdown);
+    private void showCountdown(Integer countdown) {
+        if (countdown == 2) {
+            hideImage();
+            mLottie.setVisibility(View.VISIBLE);
+            mLottie.playAnimation();
+        }
     }
 
     private void showImage(String data) {
+        mLottie.setVisibility(GONE);
         Picasso.with(this).load(data).into(mPhotoView);
         mPhotoView.setVisibility(View.VISIBLE);
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mPhotoView.setVisibility(GONE);
+            }
+        }, 5000);
+    }
+
+    private void hideImage() {
+        mPhotoView.setVisibility(GONE);
     }
 
     private void showDefaultState() {
-        mPhotoView.setVisibility(View.GONE);
+        mPhotoView.setVisibility(GONE);
     }
 
     private void showEditUrlDialog() {
-//         new AlertDialog.Builder(this).setPositiveButton("OK", new DialogInterface.OnClickListener() {
-//             @Override
-//             public void onClick(DialogInterface dialogInterface, int i) {
-//                 (( PhotoboothApplication)getApplication()).setServerUrl()
-//             }
-//         })
+        final EditText editText = new EditText(this);
+        new AlertDialog.Builder(this)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        String text = editText.getText().toString();
+                        ((PhotoboothApplication) getApplication()).setServerUrl(text);
+                    }
+                })
+                .create()
+                .show();
     }
 
     //Event Management
 
     @OnClick(R.id.main_photo)
     public void onPhotoClicked() {
-        showCountdown("3");
+        showCountdown(3);
+        mLottie.playAnimation();
 //   TODO     takePicture();
+    }
+
+    @OnClick(R.id.main_chronometer)
+    public void onChronometerClicked() {
+//        mChronometer.setCountDown(true);
+        mChronometer.start();
+
+    }
+
+    @OnClick(R.id.main_lottie)
+    public void onLottieclicked() {
+//        mLottie.playAnimation();
+    }
+
+    @OnClick(R.id.main_hidden_button)
+    public void onHiddenButtonClicked() {
+        showEditUrlDialog();
     }
 
     private void takePicture() {
@@ -101,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    String countdown = (String) args[0];
+                    Integer countdown = (Integer) args[0];
                     log("onCountdown " + countdown);
                     showCountdown(countdown);
                 }
@@ -116,8 +163,9 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     String data = (String) args[0];
-                    log("onPicture " + data);
-                    showImage(data);
+                    String serverUrl = ((PhotoboothApplication) getApplication()).getServerUrl();
+                    log("onPicture " + data + " server Url" + serverUrl);
+                    showImage(serverUrl + "/" + data);
                 }
             });
         }

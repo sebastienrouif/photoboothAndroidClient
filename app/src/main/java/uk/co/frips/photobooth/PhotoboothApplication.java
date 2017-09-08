@@ -31,11 +31,11 @@ public class PhotoboothApplication extends Application {
         return mSocket;
     }
 
-    private String getServerUrl() {
+    public String getServerUrl() {
         return sharedPreferences.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL);
     }
 
-    private void setServerUrl(String url) {
+    public void setServerUrl(String url) {
         sharedPreferences.edit().putString(KEY_SERVER_URL,url).apply();
     }
 }
